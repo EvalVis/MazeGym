@@ -22,6 +22,9 @@ class MazeEnvironment(gym.Env):
         self.action_space = None
         self.observation_space = None
 
+        if width % 2 == 0 or height % 2 == 0:
+            raise ValueError("Dimensions must be odd numbers.")
+
         if (width and height) is not None and (width < 7 or height < 7):
             raise ValueError("Maze cannot be smaller than 7x7.")
 
