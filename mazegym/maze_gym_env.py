@@ -176,7 +176,6 @@ class MazeEnvironment(gym.Env):
         if self.render_mode == "rgb_array":
             return self._maze.copy()
         elif self.render_mode == "human":
-            # Create a colormap: 0=white (path), 1=black (wall), 2=blue (agent), 3=red (goal)
             custom_cmap = colors.ListedColormap(['white', 'black', 'blue', 'red'])
             
 
