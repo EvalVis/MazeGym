@@ -178,7 +178,6 @@ class MazeEnvironment(gym.Env):
         elif self.render_mode == "human":
             custom_cmap = colors.ListedColormap(['white', 'black', 'blue', 'red'])
             
-
             if self.fig is None or not plt.fignum_exists(self.fig.number):
                 self.fig, self.ax = plt.subplots(figsize=(10, 5))
                 self.ax.set_title(f"Maze ({self._width}x{self._height})")
