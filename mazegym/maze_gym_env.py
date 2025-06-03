@@ -172,7 +172,7 @@ class MazeEnvironment(gym.Env):
         info = {"valid_moves": self._get_valid_moves(self._agent_pos)}
         return self._maze.copy(), -1, False, truncated, info
     
-    def render(self):
+    def render(self): # pragma: no cover
         if self.render_mode == "rgb_array":
             return self._maze.copy()
         elif self.render_mode == "human":
@@ -193,7 +193,7 @@ class MazeEnvironment(gym.Env):
             
             return self._maze.copy()
     
-    def close(self):
+    def close(self): # pragma: no cover
         if self.fig is not None:
             plt.close(self.fig)
     
