@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/EvalVis/MazeGym/branch/main/graph/badge.svg)](https://codecov.io/gh/EvalVis/MazeGym)
 [![PyPI version](https://badge.fury.io/py/mazegym.svg)](https://pypi.org/project/mazegym/)
 
-Library used: [![GitHub](https://img.shields.io/badge/GitHub-john-science/mazelib-black?style=flat&logo=github)](https://github.com/john-science/mazelib).
+Library used: [![GitHub](https://img.shields.io/badge/GitHub-john--science%2Fmazelib-black?style=flat&logo=github)](https://github.com/john-science/mazelib).
 
 # 9x9 maze
 
