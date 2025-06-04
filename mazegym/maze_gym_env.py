@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 
 class MazeEnvironment(gym.Env):
-    def __init__(self, width=None, height=None, grid=None, render_mode="rgb_array"):
+    metadata = {'render.modes': ['human']}
+    def __init__(self, width=None, height=None, grid=None):
         super().__init__()
         self._width = width
         self._height = height
@@ -23,13 +24,10 @@ class MazeEnvironment(gym.Env):
         
         self.action_space = None
         self.observation_space = None
-        self.render_mode = render_mode
         self.fig = None
         self.ax = None
         
-        # Enable interactive mode for non-blocking plots
-        if render_mode == "human":
-            plt.ion()
+        plt.ion()
 
         if width and height is not None:
             if width < 7 or height < 7:
@@ -173,24 +171,21 @@ class MazeEnvironment(gym.Env):
         return self._maze.copy(), -1, False, truncated, info
     
     def render(self): # pragma: no cover
-        if self.render_mode == "rgb_array":
-            return self._maze.copy()
-        elif self.render_mode == "human":
-            custom_cmap = colors.ListedColormap(['white', 'black', 'blue', 'red'])
-            
-            if self.fig is None or not plt.fignum_exists(self.fig.number):
-                self.fig, self.ax = plt.subplots(figsize=(10, 5))
-                self.ax.set_title(f"Maze ({self._width}x{self._height})")
-                self.ax.set_xticks([])
-                self.ax.set_yticks([])
-                self.im = self.ax.imshow(self._maze, cmap=custom_cmap, interpolation='nearest')
-            else:
-                self.im.set_data(self._maze)
-            
-            self.fig.canvas.draw()
-            self.fig.canvas.flush_events()
-            
-            return self._maze.copy()
+        custom_cmap = colors.ListedColormap(['white', 'black', 'blue', 'red'])
+        
+        if self.fig is None or not plt.fignum_exists(self.fig.number):
+            self.fig, self.ax = plt.subplots(figsize=(10, 5))
+            self.ax.set_title(f"Maze ({self._width}x{self._height})")
+            self.ax.set_xticks([])
+            self.ax.set_yticks([])
+            self.im = self.ax.imshow(self._maze, cmap=custom_cmap, interpolation='nearest')
+        else:
+            self.im.set_data(self._maze)
+        
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+        
+        return self._maze.copy()
     
     def close(self): # pragma: no cover
         if self.fig is not None:
