@@ -3,6 +3,8 @@
 [![codecov](https://codecov.io/gh/EvalVis/MazeGym/branch/main/graph/badge.svg)](https://codecov.io/gh/EvalVis/MazeGym)
 [![PyPI version](https://badge.fury.io/py/mazegym.svg)](https://pypi.org/project/mazegym/)
 
+A Gymnasium env for training reinforcement learning agents to navigate mazes.
+
 Library used: [![GitHub](https://img.shields.io/badge/GitHub-john--science%2Fmazelib-black?style=flat&logo=github)](https://github.com/john-science/mazelib).
 
 # 9x9 maze
@@ -22,6 +24,59 @@ Random moves are used for this demo.
 Random moves are used for this demo.
 
 ![Maze35x15](images/maze_35_15.gif)
+
+## Usage
+
+### Initiating the env via gym
+
+```python
+import gymnasium as gym
+
+env_9x9_random = gym.make('Maze9x9Random-v0')
+env_35x15_random = gym.make('Maze35x15Random-v0')
+
+env_5x5_fixed = gym.make('Maze5x5Fixed-v0')
+env_3x7_fixed = gym.make('Maze3x7Fixed-v0')
+```
+
+### Initiating the env directly
+
+```python
+from mazegym import MazeEnvironment
+
+#Random env
+env_random = MazeEnvironment(width=10, height=5)
+
+# Fixed env
+fixed_grid = np.ones((3, 7), dtype=np.int8)
+fixed_grid[1, :] = 0
+fixed_grid[1, 0] = 2
+fixed_grid[1, 6] = 3
+env_fixed = MazeEnvironment(grid=grid)
+```
+
+### Making moves
+
+```python
+import gymnasium as gym
+
+env_35x15_random = gym.make('Maze35x15Random-v0')
+
+# Reset the environment
+observation, info = env_35x15_random.reset()
+
+# Make a random valid move
+
+valid_moves = info.get("valid_moves")
+move = random.choice(valid_moves)
+observation, reward, done, truncated, info = env_35x15_random.step(move)
+
+# Render the environment. The only render mode is 'human' which renders visual output.
+env_35x15_random.render()
+
+# Close the environment
+env_35x15_random.close()
+```
 
 ## Environment Details
 

@@ -1,6 +1,6 @@
 [project]
 name = "mazegym"
-version = "1.0.1"
+version = "1.0.2"
 description = "A Gymnasium environment for maze-based reinforcement learning"
 readme = "README.md"
 authors = [{name = "Evaldas Visockas", email = "developersediary@gmail.com"}]
