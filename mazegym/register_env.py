@@ -38,7 +38,7 @@ def create_custom_grid():
     return grid
 
 register(
-    id='Maze5x5Fuxed-v0',
+    id='Maze5x5Fixed-v0',
     entry_point='mazegym.maze_gym_env:MazeEnvironment',
     kwargs={
         'grid': create_custom_grid()
