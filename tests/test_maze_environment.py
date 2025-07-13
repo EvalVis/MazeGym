@@ -39,7 +39,7 @@ def test_user_input_grid():
 def test_random_generation():
     """Test that a random maze is generated when no grid is provided."""
     width, height = 7, 7
-    env = MazeEnvironment(width=width, height=height)
+    env = MazeEnvironment(size=(width, height))
     
     obs, info = env.reset()
     
@@ -111,10 +111,22 @@ def test_valid_move(custom_env):
     assert agent_position == [[1, 2]]
 
 def test_invalid_move(custom_env):
-    """Test that an invalid action raises ValueError."""
-    with pytest.raises(ValueError):
-        invalid_action = 10  # An action index that doesn't exist
-        custom_env.step(invalid_action) 
+    """Test that an invalid action returns -2 reward and doesn't change position."""
+    _, _ = custom_env.reset()
+    initial_agent_pos = custom_env._agent_pos
+    
+    # Test with invalid action index
+    invalid_action = 10  # An action index that doesn't exist
+    obs, reward, done, _, info = custom_env.step(invalid_action)
+    
+    # Should return -2 reward for invalid move
+    assert reward == -2
+    # Agent position should not change
+    assert custom_env._agent_pos == initial_agent_pos
+    # Episode should not be done
+    assert done == False
+    # Should still provide valid moves info
+    assert "valid_moves" in info
 
 def test_vision_system():
     """Test that the agent only sees in the direction they're facing (starts facing right)."""

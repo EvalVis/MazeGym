@@ -8,10 +8,14 @@ from matplotlib import colors
 
 class MazeEnvironment(gym.Env):
     metadata = {'render.modes': ['human']}
-    def __init__(self, width=None, height=None, grid=None, vision_range=None):
+    def __init__(self, size=None, grid=None, vision_range=None, 
+                 wall_path_swap=None):
         super().__init__()
-        self._width = width
-        self._height = height
+        if size is not None:
+            self._width, self._height = size
+        else:
+            self._width = None
+            self._height = None
         self._maze = None
         self._agent_pos = None
         self._goal_pos = None
@@ -20,6 +24,13 @@ class MazeEnvironment(gym.Env):
         self._vision_range = vision_range if vision_range is not None else float('inf')
         self._facing_direction = 1  # 0: up, 1: right, 2: down, 3: left (starts looking right)
         self._visited_positions = set()  # Track visited positions to prevent fog of war
+        
+        # Dynamic wall/path swapping parameters (chance, cooldown)
+        if wall_path_swap is not None:
+            self._wall_path_swap_change, self._wall_path_swap_cooldown = wall_path_swap
+        else:
+            self._wall_path_swap_change = None
+            self._wall_path_swap_cooldown = None
         
         self._initial_maze = None
         self._initial_agent_pos = None
@@ -33,15 +44,16 @@ class MazeEnvironment(gym.Env):
         
         plt.ion()
 
-        if width and height is not None:
+        if size is not None:
+            width, height = size
             if width < 7 or height < 7:
                 raise ValueError("Maze cannot be smaller than 7x7.")
             if width % 2 == 0 or height % 2 == 0:
                 raise ValueError("Dimensions must be odd numbers.")
 
-        if ((width is not None and height is not None and grid is not None)
-                or ((width is None or height is None) and grid is None)):
-            raise ValueError("Please enter either width and height or a grid")
+        if ((size is not None and grid is not None)
+                or (size is None and grid is None)):
+            raise ValueError("Please enter either size or a grid")
         
         if grid is not None:
             self._setup_from_grid(grid)
@@ -169,6 +181,33 @@ class MazeEnvironment(gym.Env):
         
         return visible_cells
     
+    def _apply_wall_path_swapping(self):
+        """Apply dynamic wall/path swapping based on parameters."""
+        if (self._wall_path_swap_change is None or 
+            self._wall_path_swap_cooldown is None or
+            self._steps_taken % self._wall_path_swap_cooldown != 0):
+            return
+        
+        # Create a copy to modify
+        new_maze = self._maze.copy()
+        
+        # Apply swapping to each cell
+        for row in range(self._height):
+            for col in range(self._width):
+                # Skip agent and goal positions
+                if (row, col) == self._agent_pos or (row, col) == self._goal_pos:
+                    continue
+                
+                cell_value = self._maze[row, col]
+                
+                # Only swap walls (1) and empty paths (0)
+                if cell_value in [0, 1]:
+                    if np.random.random() < self._wall_path_swap_change:
+                        # Swap: wall becomes path, path becomes wall
+                        new_maze[row, col] = 1 - cell_value
+        
+        self._maze = new_maze
+    
     def _apply_vision_mask(self):
         """Apply vision mask to the maze, obscuring areas outside line of sight."""
         # If vision range is infinite (None), show everything
@@ -208,12 +247,18 @@ class MazeEnvironment(gym.Env):
             raise ValueError("Episode has already finished.")
             
         self._steps_taken += 1
+        truncated = self._steps_taken >= self._max_steps
+
+        # Apply dynamic wall/path swapping if configured
+        self._apply_wall_path_swapping()
+
         current_row, current_col = self._agent_pos
         
         valid_moves = self._get_valid_moves(self._agent_pos)
         
         if action not in valid_moves:
-            raise ValueError(f"Invalid action: {action}. Valid moves are {valid_moves}")
+            info = {"valid_moves": valid_moves}
+            return self._apply_vision_mask(), -2, False, truncated, info
             
         moves = [(-1, 0), (0, 1), (1, 0), (0, -1)]  # 0: up, 1: right, 2: down, 3: left
         dr, dc = moves[action]
@@ -227,7 +272,6 @@ class MazeEnvironment(gym.Env):
         self._maze[new_row, new_col] = 2
         self._agent_pos = (new_row, new_col)
         self._visited_positions.add(self._agent_pos)  # Mark new position as visited
-        truncated = self._steps_taken >= self._max_steps
               
         if self._agent_pos == self._goal_pos:
             return self._apply_vision_mask(), 100, True, truncated, {}

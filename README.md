@@ -31,6 +31,7 @@ Random moves are used for this demo.
 
 ```python
 import gymnasium as gym
+import mazegym
 
 env_9x9_random = gym.make('Maze9x9Random-v0')
 env_35x15_random = gym.make('Maze35x15Random-v0')
@@ -77,6 +78,15 @@ env_35x15_random.render()
 # Close the environment
 env_35x15_random.close()
 ```
+
+## Configurable parameters:
+- **width**: width of maze.
+- **height**: height of maze.
+- **grid**: User for custom mazes.
+- **vision_range**: Range of tiles your agent can see forward. Agent only sees forward and remembers previously visited tiles. If vision_range is not specified all map is visible.
+-- **wall_path_swap**: Tuple accepting two elements. Allows environment randomness making a wall become a path and a path become a wall. First value is the transformation chance. The second value is the frequency of transformations. No effects if tuple value is None. 
+
+Either width and height or grid is required. Width ang height are used for random mazes while grid is used for custom mazes.
 
 ## Environment Details
 
