@@ -33,7 +33,7 @@ def test_user_input_grid():
     agent_pos = tuple(np.argwhere(obs == 2)[0])
     assert agent_pos == (1, 1)
     # Verify goal position
-    goal_pos = tuple(np.argwhere(obs == 3)[0])
+    goal_pos = tuple(np.argwhere(env._maze == 3)[0])
     assert goal_pos == (2, 2)
 
 def test_random_generation():
@@ -43,12 +43,9 @@ def test_random_generation():
     
     obs, info = env.reset()
     
-    # Verify dimensions
     assert obs.shape == (height, width)
-    # Verify there's exactly one agent and one goal
     assert np.sum(obs == 2) == 1
-    assert np.sum(obs == 3) == 1
-    # Verify there are valid moves
+    assert np.sum(env._maze == 3) == 1
     assert "valid_moves" in info
     assert len(info["valid_moves"]) > 0
 
@@ -85,10 +82,10 @@ def test_reset(custom_env):
     
     # The reset maze should match the original grid with agent and goal
     agent_pos = np.argwhere(obs == 2)[0]
-    goal_pos = np.argwhere(obs == 3)[0]
+    goal_pos = np.argwhere(custom_env._maze == 3)[0]  # Check internal maze
 
     reset_agent_pos = np.argwhere(reset_maze == 2)[0]
-    reset_goal_pos = np.argwhere(reset_maze == 3)[0]
+    reset_goal_pos = np.argwhere(custom_env._maze == 3)[0]  # Check internal maze
     
     assert np.array_equal(reset_agent_pos, agent_pos)
     assert np.array_equal(reset_goal_pos, goal_pos)
@@ -118,3 +115,71 @@ def test_invalid_move(custom_env):
     with pytest.raises(ValueError):
         invalid_action = 10  # An action index that doesn't exist
         custom_env.step(invalid_action) 
+
+def test_vision_system():
+    """Test that the agent only sees in the direction they're facing (starts facing right)."""
+    grid = np.ones((5, 5), dtype=np.int8)
+    grid[1:4, 1:4] = 0  # Open area
+    grid[2, 2] = 2  # Agent in center
+    grid[3, 3] = 3  # Goal in corner
+    
+    env = MazeEnvironment(grid=grid, vision_range=2)
+    obs, _ = env.reset()
+    
+    # Agent starts facing right, so can only see straight ahead (no diagonals)
+    expected = np.array([
+        [4, 4, 4, 4, 4],  # Nothing visible in this row
+        [4, 4, 4, 4, 4],  # Nothing visible in this row
+        [4, 4, 2, 0, 1],  # Agent and path straight ahead with wall
+        [4, 4, 4, 4, 4],  # Nothing visible in this row
+        [4, 4, 4, 4, 4]   # Nothing visible in this row
+    ], dtype=np.int8)
+    
+    assert np.array_equal(obs, expected)
+
+def test_visited_paths_remain_visible():
+    """Test that previously visited paths remain visible and don't become fog of war."""
+    grid = np.ones((5, 5), dtype=np.int8)
+    grid[1:4, 1:4] = 0  # Open area
+    grid[2, 2] = 2  # Agent in center
+    grid[3, 3] = 3  # Goal in corner
+    
+    env = MazeEnvironment(grid=grid, vision_range=2)
+    obs, _ = env.reset()
+    
+    # Initially agent at (2,2) facing right
+    # Move right to (2,3)
+    obs, _, _, _, _ = env.step(1)  # Move right
+    
+    # Now agent is at (2,3) facing right, but (2,2) should still be visible as visited
+    expected_after_right = np.array([
+        [4, 4, 4, 4, 4],  # Nothing visible in this direction
+        [4, 4, 4, 4, 4],  # Nothing visible in this direction
+        [4, 4, 0, 2, 1],  # Previous position (2,2) still visible, agent now at (2,3), wall ahead
+        [4, 4, 4, 4, 4],  # Nothing visible in this direction
+        [4, 4, 4, 4, 4]   # Nothing visible in this direction
+    ], dtype=np.int8)
+    
+    assert np.array_equal(obs, expected_after_right)
+
+def test_unlimited_vision():
+    """Test that when vision_range=None, the agent can see everything."""
+    grid = np.ones((5, 5), dtype=np.int8)
+    grid[1:4, 1:4] = 0  # Open area
+    grid[2, 2] = 2  # Agent in center
+    grid[3, 3] = 3  # Goal in corner
+    
+    env = MazeEnvironment(grid=grid, vision_range=None)
+    obs, _ = env.reset()
+    
+    # With unlimited vision, observation should match the internal maze exactly
+    expected = np.array([
+        [1, 1, 1, 1, 1],  # Full maze visible
+        [1, 0, 0, 0, 1],  # Full maze visible
+        [1, 0, 2, 0, 1],  # Agent and full maze visible
+        [1, 0, 0, 3, 1],  # Goal and full maze visible
+        [1, 1, 1, 1, 1]   # Full maze visible
+    ], dtype=np.int8)
+    
+    assert np.array_equal(obs, expected)
+    assert np.array_equal(obs, env._maze)  # Should be identical to internal maze

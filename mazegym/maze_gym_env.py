@@ -8,7 +8,7 @@ from matplotlib import colors
 
 class MazeEnvironment(gym.Env):
     metadata = {'render.modes': ['human']}
-    def __init__(self, width=None, height=None, grid=None):
+    def __init__(self, width=None, height=None, grid=None, vision_range=None):
         super().__init__()
         self._width = width
         self._height = height
@@ -17,10 +17,14 @@ class MazeEnvironment(gym.Env):
         self._goal_pos = None
         self._steps_taken = 0
         self._max_steps = None
+        self._vision_range = vision_range if vision_range is not None else float('inf')
+        self._facing_direction = 1  # 0: up, 1: right, 2: down, 3: left (starts looking right)
+        self._visited_positions = set()  # Track visited positions to prevent fog of war
         
         self._initial_maze = None
         self._initial_agent_pos = None
         self._initial_goal_pos = None
+        self._initial_facing_direction = None
         
         self.action_space = None
         self.observation_space = None
@@ -75,13 +79,9 @@ class MazeEnvironment(gym.Env):
         """Generate a random maze."""
         maze = Maze()
         
-        # Convert our dimensions to mazelib dimensions
-        # For a maze of width W and height H, mazelib needs dimensions (W*2+1, H*2+1)
-        # because it represents walls as cells too
         maze_width = (self._width - 1) // 2
         maze_height = (self._height - 1) // 2
         
-        # Ensure minimum size
         maze_width = max(1, maze_width)
         maze_height = max(1, maze_height)
         
@@ -108,7 +108,7 @@ class MazeEnvironment(gym.Env):
         """Set up action and observation spaces based on current dimensions."""
         self.action_space = spaces.Discrete(4)
         self.observation_space = spaces.Box(
-            low=0, high=3, shape=(self._height, self._width), dtype=np.int8
+            low=0, high=4, shape=(self._height, self._width), dtype=np.int8
         )
     
     def _store_initial_state(self):
@@ -116,6 +116,7 @@ class MazeEnvironment(gym.Env):
         self._initial_maze = self._maze.copy()
         self._initial_agent_pos = self._agent_pos
         self._initial_goal_pos = self._goal_pos
+        self._initial_facing_direction = self._facing_direction
         self._steps_taken = 0
         self._max_steps = 3 * self._width * self._height
     
@@ -131,16 +132,76 @@ class MazeEnvironment(gym.Env):
                 
         return valid_moves
     
+    def _cast_ray(self, start_pos, direction, max_distance):
+        """Cast a ray from start_pos in given direction and return visible cells."""
+        visible_cells = []
+        row, col = start_pos
+        dr, dc = direction
+        
+        for distance in range(1, max_distance + 1):
+            new_row = row + dr * distance
+            new_col = col + dc * distance
+            
+            if not (0 <= new_row < self._height and 0 <= new_col < self._width):
+                break
+            
+            visible_cells.append((new_row, new_col))
+            
+            if self._maze[new_row, new_col] == 1:
+                break
+                
+        return visible_cells
+    
+    def _get_line_of_sight(self, agent_pos):
+        """Get all cells visible from agent's position in the facing direction only."""
+        visible_cells = set()
+        visible_cells.add(agent_pos)
+        
+        # Direction vectors: 0: up, 1: right, 2: down, 3: left
+        main_directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+        
+        # Get the main facing direction
+        main_direction = main_directions[self._facing_direction]
+        
+        # Cast ray only in the main facing direction (no diagonals)
+        ray_cells = self._cast_ray(agent_pos, main_direction, self._vision_range)
+        visible_cells.update(ray_cells)
+        
+        return visible_cells
+    
+    def _apply_vision_mask(self):
+        """Apply vision mask to the maze, obscuring areas outside line of sight."""
+        # If vision range is infinite (None), show everything
+        if self._vision_range == float('inf'):
+            return self._maze.copy()
+        
+        visible_cells = self._get_line_of_sight(self._agent_pos)
+        
+        masked_maze = np.full((self._height, self._width), 4, dtype=np.int8)
+        
+        # Copy visible cells from the real maze
+        for row, col in visible_cells:
+            masked_maze[row, col] = self._maze[row, col]
+        
+        # Copy visited positions from the real maze (they remain visible)
+        for row, col in self._visited_positions:
+            masked_maze[row, col] = self._maze[row, col]
+        
+        return masked_maze
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         
         self._maze = self._initial_maze.copy()
         self._agent_pos = self._initial_agent_pos
         self._goal_pos = self._initial_goal_pos
+        self._facing_direction = self._initial_facing_direction
         self._steps_taken = 0
+        self._visited_positions = set()
+        self._visited_positions.add(self._agent_pos)  # Mark initial position as visited
 
         info = {"valid_moves": self._get_valid_moves(self._agent_pos)}
-        return self._maze.copy(), info
+        return self._apply_vision_mask(), info
     
     def step(self, action):
         if self._steps_taken >= self._max_steps:
@@ -159,33 +220,37 @@ class MazeEnvironment(gym.Env):
         
         new_row, new_col = current_row + dr, current_col + dc
         
+        # Update facing direction based on movement
+        self._facing_direction = action
+        
         self._maze[current_row, current_col] = 0
         self._maze[new_row, new_col] = 2
         self._agent_pos = (new_row, new_col)
+        self._visited_positions.add(self._agent_pos)  # Mark new position as visited
         truncated = self._steps_taken >= self._max_steps
               
         if self._agent_pos == self._goal_pos:
-            return self._maze.copy(), 100, True, truncated, {}
+            return self._apply_vision_mask(), 100, True, truncated, {}
  
         info = {"valid_moves": self._get_valid_moves(self._agent_pos)}
-        return self._maze.copy(), -1, False, truncated, info
+        return self._apply_vision_mask(), -1, False, truncated, info
     
     def render(self): # pragma: no cover
-        custom_cmap = colors.ListedColormap(['white', 'black', 'blue', 'red'])
+        custom_cmap = colors.ListedColormap(['white', 'black', 'blue', 'red', 'gray'])
         
         if self.fig is None or not plt.fignum_exists(self.fig.number):
             self.fig, self.ax = plt.subplots(figsize=(10, 5))
-            self.ax.set_title(f"Maze ({self._width}x{self._height})")
+            self.ax.set_title(f"Maze ({self._width}x{self._height}) - Agent Vision")
             self.ax.set_xticks([])
             self.ax.set_yticks([])
-            self.im = self.ax.imshow(self._maze, cmap=custom_cmap, interpolation='nearest')
+            self.im = self.ax.imshow(self._apply_vision_mask(), cmap=custom_cmap, interpolation='nearest')
         else:
-            self.im.set_data(self._maze)
+            self.im.set_data(self._apply_vision_mask())
         
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         
-        return self._maze.copy()
+        return self._apply_vision_mask()
     
     def close(self): # pragma: no cover
         if self.fig is not None:
