@@ -8,8 +8,7 @@ from matplotlib import colors
 
 class MazeEnvironment(gym.Env):
     metadata = {'render.modes': ['human']}
-    def __init__(self, size=None, grid=None, vision_range=None, 
-                 wall_path_swap=None):
+    def __init__(self, size=None, grid=None, vision_range=None, wall_path_swap=None, max_steps=None):
         super().__init__()
         if size is not None:
             self._width, self._height = size
@@ -20,7 +19,7 @@ class MazeEnvironment(gym.Env):
         self._agent_pos = None
         self._goal_pos = None
         self._steps_taken = 0
-        self._max_steps = None
+        self._max_steps = max_steps
         self._vision_range = vision_range if vision_range is not None else float('inf')
         self._facing_direction = 1  # 0: up, 1: right, 2: down, 3: left (starts looking right)
         self._visited_positions = set()  # Track visited positions to prevent fog of war
@@ -130,7 +129,7 @@ class MazeEnvironment(gym.Env):
         self._initial_goal_pos = self._goal_pos
         self._initial_facing_direction = self._facing_direction
         self._steps_taken = 0
-        self._max_steps = 3 * self._width * self._height
+        self._max_steps = self._max_steps if self._max_steps is not None else 3 * self._width * self._height
     
     def _get_valid_moves(self, position):
         row, col = position

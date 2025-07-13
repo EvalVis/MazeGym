@@ -84,7 +84,8 @@ env_35x15_random.close()
 - **height**: height of maze.
 - **grid**: User for custom mazes.
 - **vision_range**: Range of tiles your agent can see forward. Agent only sees forward and remembers previously visited tiles. If vision_range is not specified all map is visible.
--- **wall_path_swap**: Tuple accepting two elements. Allows environment randomness making a wall become a path and a path become a wall. First value is the transformation chance. The second value is the frequency of transformations. No effects if tuple value is None. 
+- **wall_path_swap**: Tuple accepting two elements. Allows environment randomness making a wall become a path and a path become a wall. First value is the transformation chance. The second value is the frequency of transformations. No effects if tuple value is None.
+- **max_steps**: Maximum steps until episode terminates. Defaults to: `(3 × width × height)`.
 
 Either width and height or grid is required. Width ang height are used for random mazes while grid is used for custom mazes.
 
@@ -93,6 +94,6 @@ Either width and height or grid is required. Width ang height are used for rando
 - **Action Space**: Discrete(4) - Four possible actions: `0` (up), `1` (right), `2` (down), `3` (left). Invalid moves (moving into walls) results in an error.
 - **Observation Space**: `Box(0, 3, (height, width), int8)`.
 Contains values: `0` for empty paths, `1` for walls, `2` for the agent, `3` for the goal.
-- **Reward**: `100` if the goal is reached, `-1` for each step taken.
+- **Reward**: `100` if the goal is reached, `-1` for each step taken. `-2` for an illegal move.
 - **Done**: `True` if the agent reaches the goal, `False` otherwise.
-- **Truncated**: `True` if maximum steps `(3 × width × height)` are exceeded, `False` otherwise.
+- **Truncated**: `True` if maximum steps are exceeded, `False` otherwise.
